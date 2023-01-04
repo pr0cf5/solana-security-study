@@ -7,9 +7,22 @@ use poc_framework::{
     keypair, solana_sdk::signer::Signer, Environment, LocalEnvironment, PrintableTransaction,
 };
 
-use self::super::assert_tx_success;
 use solana_program::native_token::lamports_to_sol;
 use solana_program::{native_token::sol_to_lamports, pubkey::Pubkey, system_program};
+
+use poc_framework::solana_transaction_status::EncodedConfirmedTransactionWithStatusMeta;
+
+pub fn assert_tx_success(
+    tx: EncodedConfirmedTransactionWithStatusMeta,
+) -> EncodedConfirmedTransactionWithStatusMeta {
+    match &tx.transaction.meta {
+        Some(meta) if meta.err.is_some() => {
+            tx.print();
+            panic!("tx failed!")
+        }
+        _ => tx,
+    }
+}
 
 struct Challenge {
     hacker: Keypair,
@@ -20,14 +33,7 @@ struct Challenge {
 }
 
 // Do your hacks in this function here
-fn hack(_env: &mut LocalEnvironment, _challenge: &Challenge) {
-
-    // Step 0: how much money do we want to steal?
-
-    // Step 1: a fake wallet with the same vault
-
-    // Step 2: Use fake wallet to withdraw funds from the real vault to the attacker
-}
+fn hack(_env: &mut LocalEnvironment, _challenge: &Challenge) {}
 
 /*
 SETUP CODE BELOW
@@ -99,6 +105,9 @@ fn setup() -> (LocalEnvironment, Challenge, Internal) {
     let path = {
         dir.pop();
         dir.pop();
+        dir.pop();
+        dir.pop();
+        dir.push("contracts");
         dir.push("target");
         dir.push("deploy");
         dir.push("level0.so");
