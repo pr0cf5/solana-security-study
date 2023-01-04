@@ -1,5 +1,0 @@
-[workspace]
-members = [
-    "level0",
-    "pocs",
-]
