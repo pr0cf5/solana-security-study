@@ -9,13 +9,13 @@ name = "level0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-poc-framework = "0.2.0"
+poc-framework = { path = "solana-poc-framework" }
 level0 = { path = "../contracts/level0",  features = ["no-entrypoint"] }
 
-solana-program = "1.11.2"
+solana-program = { path = "./solana-1.11.2/sdk/program" }
 borsh = "0.9.1"
 borsh-derive = "0.9.1"
-spl-token = { version = "*", features = ["no-entrypoint"] }
+spl-token = { path = "./spl-token-3.3.0" }
 
 owo-colors = "3.1.0"
-solana-logger = "1.11.2"
+solana-logger = { path = "./solana-1.11.2/logger" }
