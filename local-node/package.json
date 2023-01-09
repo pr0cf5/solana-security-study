@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@solana/buffer-layout": "^4.0.1",
+    "@solana/web3.js": "^1.73.0",
+    "borsh": "^0.7.0",
+    "exploit": "file:exploit",
+    "wallet": "file:wallet"
+  }
+}
