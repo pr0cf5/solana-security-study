@@ -4,6 +4,7 @@
     "@solana/web3.js": "^1.73.0",
     "borsh": "^0.7.0",
     "exploit": "file:exploit",
-    "wallet": "file:wallet"
+    "wallet-v0": "file:wallet-v0",
+    "wallet-v1": "file:wallet-v1"
   }
 }

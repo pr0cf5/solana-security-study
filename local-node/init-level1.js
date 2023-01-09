@@ -8,7 +8,7 @@ const {
     BPF_LOADER_PROGRAM_ID,
     PublicKey
 } = require("@solana/web3.js");
-const { Wallet } = require("wallet-v0");
+const { Wallet } = require("wallet-v1");
 const fs = require('fs');
 
 const connection = new Connection("http://localhost:8899", "confirmed");
@@ -67,7 +67,7 @@ let richBoy = Keypair.fromSecretKey(richBoySecretKey);
     }
 
     // load wallet code
-    const walletCode = fs.readFileSync("./level0.so");
+    const walletCode = fs.readFileSync("./level1.so");
     const walletProgram = Keypair.generate();
     const walletProgramId = walletProgram.publicKey;
     {
@@ -97,9 +97,7 @@ let richBoy = Keypair.fromSecretKey(richBoySecretKey);
         let tx = new Transaction().add(ix);
         await sendAndConfirmTransaction(connection, tx, [richBoy]);
         const [walletAddress, _walletBumpSeed] = PublicKey.findProgramAddressSync([authority.publicKey.toBytes()], walletProgramId);
-        const accountInfo = await connection.getAccountInfo(walletAddress);
-        const [_, vaultAddress] = Wallet.decodeWalletData(accountInfo.data);
-        const vaultBalance = await connection.getBalance(vaultAddress);
-        console.log(`[+] RichBoy deposited funds, vault balance is ${vaultBalance / LAMPORTS_PER_SOL} SOL`);
+        const walletBalance = await connection.getBalance(walletAddress);
+        console.log(`[+] RichBoy deposited funds, vault balance is ${walletBalance / LAMPORTS_PER_SOL} SOL`);
     }
 })();
