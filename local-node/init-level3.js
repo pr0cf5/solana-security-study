@@ -7,8 +7,9 @@ const {
   BpfLoader,
   BPF_LOADER_PROGRAM_ID,
   PublicKey,
+  SystemProgram,
 } = require("@solana/web3.js");
-const { Wallet } = require("wallet-v1");
+const { Tip } = require("tip");
 const fs = require("fs");
 
 const connection = new Connection("http://localhost:8899", "confirmed");
@@ -63,7 +64,7 @@ let richBoy = Keypair.fromSecretKey(richBoySecretKey);
   }
   if (
     (await connection.getBalance(richBoy.publicKey)) <
-    42 * LAMPORTS_PER_SOL
+    43 * LAMPORTS_PER_SOL
   ) {
     const sig = await connection.requestAirdrop(
       richBoy.publicKey,
@@ -77,54 +78,83 @@ let richBoy = Keypair.fromSecretKey(richBoySecretKey);
   }
 
   // load wallet code
-  const walletCode = fs.readFileSync("./level1.so");
-  const walletProgram = Keypair.generate();
-  const walletProgramId = walletProgram.publicKey;
+  const tipCode = fs.readFileSync("./level3.so");
+  const tipProgram = Keypair.generate();
+  const tipProgramId = tipProgram.publicKey;
   {
     const success = await BpfLoader.load(
       connection,
       authority,
-      walletProgram,
-      walletCode,
+      tipProgram,
+      tipCode,
       BPF_LOADER_PROGRAM_ID
     );
     if (!success) {
-      console.log("[!] Failed to load wallet program!");
+      console.log("[!] Failed to load tip program!");
       throw "fail";
     } else {
-      console.log("[+] Successfully loaded wallet program");
+      console.log("[+] Successfully loaded tip program");
     }
   }
 
-  console.log(`[+] Wallet programID: ${walletProgramId}`);
+  console.log(`[+] Tip programID: ${tipProgramId}`);
 
   // send init transaction to create vault
-  var walletAddress = "";
+  var vaultAddress = "";
   {
-    const [ix, walletAddress_] = Wallet.initialize(
-      walletProgramId,
+    const [ix, vaultAddress_] = Tip.initialize(
+      tipProgramId,
       authority.publicKey
     );
-    walletAddress = walletAddress_;
+    vaultAddress = vaultAddress_;
     let tx = new Transaction().add(ix);
     await sendAndConfirmTransaction(connection, tx, [authority]);
-    console.log("[+] Initialization done");
+    console.log(`[+] Initialization done, vault address at: ${vaultAddress}`);
   }
 
-  // rich boy deposits funds to the vault
+  const pool = Keypair.generate();
+  const poolAddress = pool.publicKey;
   {
-    const ix = Wallet.deposit(
-      walletProgramId,
+    const poolSize = 72;
+    const ix = SystemProgram.createAccount({
+      fromPubkey: authority.publicKey,
+      newAccountPubkey: poolAddress,
+      lamports: await connection.getMinimumBalanceForRentExemption(poolSize),
+      space: poolSize,
+      programId: tipProgramId,
+    });
+    let tx = new Transaction().add(ix);
+    await sendAndConfirmTransaction(connection, tx, [authority, pool]);
+  }
+
+  // authority creates pool
+  {
+    const ix = Tip.createPool(
+      tipProgramId,
+      vaultAddress,
       authority.publicKey,
+      poolAddress
+    );
+    let tx = new Transaction().add(ix);
+    await sendAndConfirmTransaction(connection, tx, [authority]);
+    console.log(`[+] Pool created at: ${poolAddress}`);
+  }
+
+  // richBoy makes donation
+  {
+    const ix = Tip.tip(
+      tipProgramId,
+      vaultAddress,
+      poolAddress,
       richBoy.publicKey,
       42 * LAMPORTS_PER_SOL
     );
     let tx = new Transaction().add(ix);
     await sendAndConfirmTransaction(connection, tx, [richBoy]);
-    const walletBalance = await connection.getBalance(walletAddress);
+    let vaultBalance = await connection.getBalance(vaultAddress);
     console.log(
-      `[+] RichBoy deposited funds, vault balance is ${
-        walletBalance / LAMPORTS_PER_SOL
+      `[+] RichBoy made donation, vault balance is ${
+        vaultBalance / LAMPORTS_PER_SOL
       } SOL`
     );
   }

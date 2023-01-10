@@ -8,7 +8,7 @@ const {
   BPF_LOADER_PROGRAM_ID,
   PublicKey,
 } = require("@solana/web3.js");
-const { Wallet } = require("wallet-v1");
+const { Wallet } = require("wallet-v2");
 const fs = require("fs");
 
 const connection = new Connection("http://localhost:8899", "confirmed");
@@ -63,7 +63,7 @@ let richBoy = Keypair.fromSecretKey(richBoySecretKey);
   }
   if (
     (await connection.getBalance(richBoy.publicKey)) <
-    42 * LAMPORTS_PER_SOL
+    43 * LAMPORTS_PER_SOL
   ) {
     const sig = await connection.requestAirdrop(
       richBoy.publicKey,
@@ -77,7 +77,7 @@ let richBoy = Keypair.fromSecretKey(richBoySecretKey);
   }
 
   // load wallet code
-  const walletCode = fs.readFileSync("./level1.so");
+  const walletCode = fs.readFileSync("./level2.so");
   const walletProgram = Keypair.generate();
   const walletProgramId = walletProgram.publicKey;
   {

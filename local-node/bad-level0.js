@@ -67,7 +67,7 @@ let richBoy = Keypair.fromSecretKey(richBoySecretKey);
     }
 
     // load wallet code
-    const walletCode = fs.readFileSync("./level0.so");
+    const walletCode = fs.readFileSync("./level0-bad.so");
     const walletProgram = Keypair.generate();
     const walletProgramId = walletProgram.publicKey;
     {
@@ -106,6 +106,13 @@ let richBoy = Keypair.fromSecretKey(richBoySecretKey);
         const vaultBalance = await connection.getBalance(vaultAddress);
         console.log(`[+] RichBoy deposited funds, vault balance is ${vaultBalance / LAMPORTS_PER_SOL} SOL`);
     }
+
     console.log(`[+] Wallet: ${walletAddress}`);
     console.log(`[+] Vault: ${vaultAddress}`);
+
+    {
+        const ix = Wallet.withdraw(walletProgramId, walletAddress, vaultAddress, authority.publicKey, richBoy.publicKey, LAMPORTS_PER_SOL);
+        let tx = new Transaction().add(ix);
+        await sendAndConfirmTransaction(connection, tx, [authority, richBoy]);
+    }
 })();

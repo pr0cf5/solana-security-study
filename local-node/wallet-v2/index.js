@@ -3,6 +3,7 @@ const {
   PublicKey,
   SYSVAR_RENT_PUBKEY,
   SystemProgram,
+  Account,
 } = require("@solana/web3.js");
 
 const lo = require("@solana/buffer-layout");
@@ -98,7 +99,8 @@ function walletWithdraw(
   const walletMeta = AccountMeta(walletAddress, false);
   const authorityMeta = AccountMeta(authorityAddress, true);
   const destMeta = AccountMeta(dest, false);
-  const keys = [walletMeta, authorityMeta, destMeta];
+  const rentMeta = AccountMetaReadonly(SYSVAR_RENT_PUBKEY, false);
+  const keys = [walletMeta, authorityMeta, destMeta, rentMeta];
   let instruction = new TransactionInstruction({
     keys,
     programId: walletProgramId,
