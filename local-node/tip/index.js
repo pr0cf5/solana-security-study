@@ -72,7 +72,12 @@ function bytesToArray(b) {
   return a;
 }
 
-function initialize(programId, initializerAddress) {
+function initialize(
+  programId,
+  initializerAddress,
+  fee = undefined,
+  feeRecipient = undefined
+) {
   const [vaultAddress, vaultSeed] = PublicKey.findProgramAddressSync(
     [],
     programId
@@ -90,13 +95,50 @@ function initialize(programId, initializerAddress) {
   const rentMeta = AccountMeta(SYSVAR_RENT_PUBKEY, false);
   const spMeta = AccountMetaReadonly(SystemProgram.programId, false);
   const keys = [vaultMeta, initializerMeta, rentMeta, spMeta];
+  if (fee == undefined) {
+    fee = packFloat64(0.0);
+  }
+  if (feeRecipient == undefined) {
+    feeRecipient = initializerAddress;
+  }
   let instruction = new TransactionInstruction({
     keys,
     programId,
     data: [0].concat(
-      [vaultSeed].concat(
-        packFloat64(0.0).concat(bytesToArray(initializerAddress.toBytes()))
-      )
+      [vaultSeed].concat(fee).concat(bytesToArray(feeRecipient.toBytes()))
+    ),
+  });
+  return [instruction, vaultAddress];
+}
+
+function initializeWithSeed(
+  programId,
+  vaultSeed,
+  initializerAddress,
+  fee = undefined,
+  feeRecipient = undefined
+) {
+  const vaultAddress = PublicKey.createProgramAddressSync(
+    [Buffer.from([vaultSeed])],
+    programId
+  );
+
+  const vaultMeta = AccountMeta(vaultAddress, false);
+  const initializerMeta = AccountMeta(initializerAddress, true);
+  const rentMeta = AccountMeta(SYSVAR_RENT_PUBKEY, false);
+  const spMeta = AccountMetaReadonly(SystemProgram.programId, false);
+  const keys = [vaultMeta, initializerMeta, rentMeta, spMeta];
+  if (fee == undefined) {
+    fee = packFloat64(0.0);
+  }
+  if (feeRecipient == undefined) {
+    feeRecipient = initializerAddress;
+  }
+  let instruction = new TransactionInstruction({
+    keys,
+    programId,
+    data: [0].concat(
+      [vaultSeed].concat(fee).concat(bytesToArray(feeRecipient.toBytes()))
     ),
   });
   return [instruction, vaultAddress];
@@ -151,6 +193,7 @@ function withdraw(
 
 exports.Tip = {
   initialize,
+  initializeWithSeed,
   createPool,
   tip,
   withdraw,

